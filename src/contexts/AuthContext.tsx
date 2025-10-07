@@ -141,20 +141,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Check if API client already has a valid token
         if (apiClient.isAuthenticated()) {
-          console.log('🔧 AuthContext: API client already authenticated, verifying...');
+          console.log('🔧 AuthContext: API client already authenticated, setting state...');
           const storedToken = apiClient.getAuthToken();
           setAuthTokenState(storedToken);
           
-          // Verify token is actually working
-          const isValid = await apiClient.verifyToken();
-          if (isValid && mounted) {
-            console.log('🔧 AuthContext: Token verified, refreshing user data');
-            await refreshUser();
-          } else if (mounted) {
-            console.log('🔧 AuthContext: Token verification failed, clearing auth');
-            setUser(null);
-            setAuthTokenState(null);
-            apiClient.clearAuthToken();
+          // Try to get user data, but don't fail if it doesn't work
+          try {
+            console.log('🔧 AuthContext: Attempting to get user data');
+            const userData = await apiClient.getCurrentUser();
+            if (mounted) {
+              console.log('🔧 AuthContext: User data retrieved successfully');
+              setUser(userData);
+            }
+          } catch (error) {
+            console.log('🔧 AuthContext: Could not get user data, but keeping token:', error);
+            // Keep the token but set user to null - they can re-login if needed
+            if (mounted) {
+              setUser(null);
+            }
           }
         } else {
           console.log('🔧 AuthContext: No valid authentication found');

@@ -56,13 +56,8 @@ export default function XrozenAI() {
         return;
       }
       
-      try {
-        console.log('🔧 XrozenAI: User authenticated, loading conversations');
-        loadConversations();
-      } catch (error) {
-        console.error('🔧 XrozenAI: Auth check failed:', error);
-        // Don't redirect for AI-specific failures
-      }
+      console.log('🔧 XrozenAI: User authenticated, loading conversations');
+      loadConversations();
     };
     
     checkAuth();

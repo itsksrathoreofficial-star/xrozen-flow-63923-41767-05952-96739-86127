@@ -107,6 +107,12 @@ export function AppSidebar() {
     // Load user role using API client
     const loadUserRole = async () => {
       try {
+        // Only try to load if authenticated
+        if (!apiClient.isAuthenticated()) {
+          console.log('🔧 AppSidebar: Not authenticated, skipping user role load');
+          return;
+        }
+        
         const user = await apiClient.getCurrentUser();
         if (!user) return;
 
@@ -117,6 +123,7 @@ export function AppSidebar() {
         }
       } catch (error) {
         console.error("Error loading user role:", error);
+        // Don't set role to anything if there's an error
       }
     };
 

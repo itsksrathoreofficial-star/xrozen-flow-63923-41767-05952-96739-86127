@@ -121,6 +121,7 @@ class ApiClient {
       if (response.status === 401) {
         // Check if this is a general auth failure or endpoint-specific issue
         const isGeneralAuthFailure = endpoint === '/profiles/me' || endpoint.includes('/auth/');
+        const isAIEndpoint = endpoint.includes('/ai/');
         
         if (isGeneralAuthFailure && !this.isClearing && !endpoint.includes('/auth/')) {
           console.log('🔧 ApiClient: General auth failure, clearing auth');
@@ -130,6 +131,9 @@ class ApiClient {
           setTimeout(() => {
             window.dispatchEvent(new CustomEvent('auth-expired'));
           }, 50);
+        } else if (isAIEndpoint) {
+          console.log('🔧 ApiClient: AI endpoint auth failure for', endpoint, '- endpoint may not be available');
+          // AI endpoints might not be implemented yet, don't clear global auth
         } else if (!isGeneralAuthFailure) {
           console.log('🔧 ApiClient: Endpoint-specific auth failure for', endpoint, '- not clearing global auth');
         } else if (endpoint.includes('/auth/')) {
