@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Plus, TrendingUp, DollarSign, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -33,6 +33,7 @@ export default function Invoices() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -40,33 +41,68 @@ export default function Invoices() {
   }, []);
 
   const checkAuth = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    try {
+      if (!apiClient.isAuthenticated()) {
+        navigate("/auth");
+        return;
+      }
+      
+      const user = await apiClient.getCurrentUser();
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+      
+      setCurrentUserId(user.id);
+    } catch (error) {
+      console.error("Auth check failed:", error);
       navigate("/auth");
     }
   };
 
   const loadInvoices = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!apiClient.isAuthenticated()) {
+        navigate("/auth");
+        return;
+      }
+      
+      const user = await apiClient.getCurrentUser();
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
 
-      const { data, error } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("editor_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      // Type-cast to our Invoice type which includes all fields
-      setInvoices((data as Invoice[]) || []);
-    } catch (error) {
+      // Load payments data as invoices (payments table is used for invoices)
+      const paymentsData = await apiClient.getPayments();
+      
+      // Transform payments to invoice format
+      const invoicesData = (paymentsData || []).map((payment: any) => ({
+        id: payment.id,
+        invoice_number: `INV-${payment.id.substring(0, 8).toUpperCase()}`,
+        editor_id: payment.recipient_id,
+        client_id: payment.payer_id,
+        project_id: payment.project_id,
+        total_amount: payment.amount,
+        paid_amount: payment.status === 'paid' ? payment.amount : 0,
+        remaining_amount: payment.status === 'paid' ? 0 : payment.amount,
+        status: payment.status,
+        due_date: payment.due_date,
+        paid_date: payment.paid_date,
+        payment_type: payment.payment_type,
+        invoice_url: payment.invoice_url,
+        created_at: payment.created_at,
+        updated_at: payment.updated_at,
+      }));
+      
+      setInvoices(invoicesData as Invoice[]);
+    } catch (error: any) {
       console.error("Error loading invoices:", error);
-      toast.error("Failed to load invoices");
+      if (error.message?.includes('Unauthorized')) {
+        navigate("/auth");
+      } else {
+        toast.error("Failed to load invoices");
+      }
     } finally {
       setLoading(false);
     }
@@ -76,13 +112,8 @@ export default function Invoices() {
     if (!selectedInvoiceId) return;
 
     try {
-      const { error } = await supabase
-        .from("invoices")
-        .delete()
-        .eq("id", selectedInvoiceId);
-
-      if (error) throw error;
-
+      // Delete payment (which acts as invoice)
+      await apiClient.deletePayment(selectedInvoiceId);
       toast.success("Invoice deleted successfully");
       setInvoices(invoices.filter((inv) => inv.id !== selectedInvoiceId));
       setDeleteDialogOpen(false);
@@ -104,28 +135,31 @@ export default function Invoices() {
 
   const handleDownloadPDF = async (invoice: Invoice) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!currentUserId) return;
 
-      // Fetch projects for this invoice
-      const { data: projects, error } = await supabase
-        .from("projects")
-        .select("name, fee")
-        .eq("invoice_id", invoice.id);
-
-      if (error) throw error;
+      // Fetch project for this invoice
+      let projects: any[] = [];
+      if (invoice.project_id) {
+        try {
+          const projectData = await apiClient.getProject(invoice.project_id);
+          if (projectData) {
+            projects = [{
+              name: projectData.name,
+              fee: projectData.fee || invoice.total_amount
+            }];
+          }
+        } catch (error) {
+          console.error("Error loading project:", error);
+        }
+      }
 
       // Fetch user profile for editor name
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
+      const profile = await apiClient.getProfile(currentUserId);
 
       await generateInvoicePDF(
         invoice, 
-        projects || [], 
-        profile?.full_name || user.email || "Unknown"
+        projects, 
+        profile?.full_name || "Unknown"
       );
       toast.success("PDF downloaded successfully");
     } catch (error) {
