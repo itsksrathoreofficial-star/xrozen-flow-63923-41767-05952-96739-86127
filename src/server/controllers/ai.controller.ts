@@ -19,7 +19,7 @@ export class AIController {
    */
   chat = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
@@ -364,7 +364,7 @@ When users ask you to perform actions, use the appropriate tools.`;
    */
   getConversations = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
@@ -388,7 +388,7 @@ When users ask you to perform actions, use the appropriate tools.`;
    */
   createConversation = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
@@ -415,7 +415,7 @@ When users ask you to perform actions, use the appropriate tools.`;
    */
   deleteConversation = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       const { conversationId } = req.params;
 
       if (!userId) {
@@ -452,7 +452,7 @@ When users ask you to perform actions, use the appropriate tools.`;
    */
   getMessages = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       const { conversationId } = req.params;
 
       if (!userId) {

@@ -517,19 +517,24 @@ class ApiClient {
   }
 
   // AI Operations
-  async sendAIMessage(message: string, conversationId?: string): Promise<any> {
+  async sendAIMessage(message: string, conversationId?: string, messages?: any[]): Promise<any> {
     return this.request('/ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, conversationId }),
+      body: JSON.stringify({ message, conversationId, messages }),
     });
   }
 
-  async chatWithAI(message: string, conversationId?: string): Promise<any> {
-    return this.sendAIMessage(message, conversationId);
+  async chatWithAI(message: string, conversationId?: string, messages?: any[]): Promise<any> {
+    return this.sendAIMessage(message, conversationId, messages);
   }
 
   async getAIConversations(): Promise<any[]> {
     const response = await this.request<ApiResponse<any[]>>('/ai/conversations');
+    return response.data || [];
+  }
+
+  async getAIMessages(conversationId: string): Promise<any[]> {
+    const response = await this.request<ApiResponse<any[]>>(`/ai/conversations/${conversationId}/messages`);
     return response.data || [];
   }
 
