@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bell, CheckCheck, Trash2, ArrowLeft } from "lucide-react";
@@ -27,8 +27,18 @@ const Notifications = () => {
   }, []);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    try {
+      if (!apiClient.isAuthenticated()) {
+        navigate("/auth");
+        return;
+      }
+      
+      const user = await apiClient.getCurrentUser();
+      if (!user) {
+        navigate("/auth");
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
       navigate("/auth");
     }
   };
